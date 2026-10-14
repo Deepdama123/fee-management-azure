@@ -1,0 +1,27 @@
+<!--
+  Student API - API-level policy (APIM > APIs > Fee Management - Student API > All operations > Policies)
+
+  * Subscription key required (set on the API: "Subscription required" = on)
+  * Rate limit: 10 calls per 60 s per subscription -> 429 Too Many Requests
+  * The Function key is injected here from a secret Named Value, so callers
+    never see it and cannot call the Function directly.
+-->
+<policies>
+    <inbound>
+        <base />
+        <rate-limit calls="10" renewal-period="60" />
+        <set-header name="x-functions-key" exists-action="override">
+            <value>{{func-host-key}}</value>
+        </set-header>
+    </inbound>
+    <backend>
+        <base />
+    </backend>
+    <outbound>
+        <base />
+        <set-header name="X-Powered-By" exists-action="delete" />
+    </outbound>
+    <on-error>
+        <base />
+    </on-error>
+</policies>

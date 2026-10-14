@@ -1,0 +1,88 @@
+### Fee Management - sample requests (VS Code "REST Client" extension)
+### Variables come from the REST Client environment (Ctrl+Alt+E), defined in
+### .vscode/settings.json (git-ignored), e.g.:
+###   "local": { "func": "http://localhost:7071/api", "apim": "", "subKey": "", "adminSubKey": "", "token": "" }
+###   "azure": { "func": "https://<func>.azurewebsites.net/api", "apim": "https://<apim>.azure-api.net",
+###              "subKey": "<student sub key>", "adminSubKey": "<admin sub key>", "token": "<entra token>" }
+
+######## LOCAL (AUTH_MODE=local-dev: identity from X-Dev-* headers) ########
+
+### Health
+GET {{func}}/health
+
+### Student fee status - Overdue student
+GET {{func}}/students/1015/fee-status
+
+### Admin query - overdue only (viewer role is enough)
+GET {{func}}/admin/students?status=Overdue&page=1&pageSize=20
+X-Dev-User: you@yourtenant.onmicrosoft.com
+X-Dev-Roles: FeeViewer
+
+### Admin record payment (FeeAdmin + must exist in dbo.Administrators)
+POST {{func}}/admin/students/1014/payments
+Content-Type: application/json
+X-Dev-User: you@yourtenant.onmicrosoft.com
+X-Dev-Roles: FeeAdmin
+
+{ "amount": 30000 }
+
+### Viewer tries to record a payment -> 403
+POST {{func}}/admin/students/1014/payments
+Content-Type: application/json
+X-Dev-User: you@yourtenant.onmicrosoft.com
+X-Dev-Roles: FeeViewer
+
+{ "amount": 100 }
+
+### Reminder feed used by the Logic App
+GET {{func}}/reminders/overdue?limit=50
+
+######## AZURE via API Management ########
+
+### Student API through APIM (subscription key). Send 11 times fast -> 429.
+GET {{apim}}/student/students/1015/fee-status
+Ocp-Apim-Subscription-Key: {{subKey}}
+
+### Student API without key -> 401 from APIM
+GET {{apim}}/student/students/1015/fee-status
+
+### Admin API: no token -> 401 (validate-jwt)
+GET {{apim}}/admin/students?status=Overdue
+Ocp-Apim-Subscription-Key: {{adminSubKey}}
+
+### Admin API: query with Entra token
+GET {{apim}}/admin/students?status=Overdue
+Ocp-Apim-Subscription-Key: {{adminSubKey}}
+Authorization: Bearer {{token}}
+
+### Admin API: one student with audit history
+GET {{apim}}/admin/students/1014
+Ocp-Apim-Subscription-Key: {{adminSubKey}}
+Authorization: Bearer {{token}}
+
+### Admin API: record payment (FeeAdmin)
+POST {{apim}}/admin/students/1014/payments
+Ocp-Apim-Subscription-Key: {{adminSubKey}}
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{ "amount": 30000 }
+
+### Admin API: overpay -> 409
+POST {{apim}}/admin/students/1007/payments
+Ocp-Apim-Subscription-Key: {{adminSubKey}}
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{ "amount": 999999 }
+
+### Admin API: extend a due date (FeeAdmin) -> status changes Overdue -> Partially Paid
+PATCH {{apim}}/admin/students/1015/fees
+Ocp-Apim-Subscription-Key: {{adminSubKey}}
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{ "dueDate": "2026-12-31" }
+
+
+

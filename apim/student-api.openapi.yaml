@@ -1,0 +1,52 @@
+openapi: 3.0.1
+info:
+  title: Fee Management - Student API
+  version: "1.0"
+  description: >
+    Students check fee details and payment status. Exposed through Azure API
+    Management with a subscription key and rate limiting.
+servers:
+  # Replace with your Function App URL (APIM uses this as the backend URL).
+  - url: https://feemgmt-func-deep-ezgcg4f5f7h0h8h4.uaenorth-01.azurewebsites.net/api
+paths:
+  /students/{studentId}/fee-status:
+    get:
+      operationId: getFeeStatus
+      summary: Fee details and payment status for one student
+      parameters:
+        - name: studentId
+          in: path
+          required: true
+          schema: { type: integer, example: 1015 }
+      responses:
+        "200":
+          description: Fee details
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/FeeStatus" }
+        "400": { description: Invalid student id }
+        "401": { description: Missing or invalid subscription key }
+        "404": { description: Student not found }
+        "429": { description: Rate limit exceeded }
+components:
+  securitySchemes:
+    apiKey:
+      type: apiKey
+      in: header
+      name: Ocp-Apim-Subscription-Key
+  schemas:
+    FeeStatus:
+      type: object
+      properties:
+        studentId: { type: integer }
+        name: { type: string }
+        course: { type: string }
+        totalFee: { type: number }
+        paidAmount: { type: number }
+        balance: { type: number }
+        dueDate: { type: string, format: date }
+        status: { type: string, enum: [Paid, Partially Paid, Overdue] }
+        daysOverdue: { type: integer }
+        asOf: { type: string, format: date }
+security:
+  - apiKey: []

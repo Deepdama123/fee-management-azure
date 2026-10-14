@@ -1,0 +1,49 @@
+<!--
+  Admin API - API-level policy (APIM > APIs > Fee Management - Admin API > All operations > Policies)
+
+  * Subscription key required (API setting) AND an Entra ID token:
+    validate-jwt checks signature (tenant's published keys), expiry,
+    issuer, audience, and that the token carries a fee role.
+  * Fine-grained check (FeeAdmin needed for POST/PATCH) happens again in
+    the Function, which also validates the token (defence in depth).
+  * Named Values used: {{tenant-id}}, {{api-client-id}}, {{func-host-key}}
+-->
+<policies>
+    <inbound>
+        <base />
+        <validate-jwt header-name="Authorization" require-scheme="Bearer"
+                      failed-validation-httpcode="401"
+                      failed-validation-error-message="A valid Entra ID access token is required.">
+            <openid-config url="https://login.microsoftonline.com/{{tenant-id}}/v2.0/.well-known/openid-configuration" />
+            <audiences>
+                <audience>{{api-client-id}}</audience>
+                <audience>api://{{api-client-id}}</audience>
+            </audiences>
+            <issuers>
+                <issuer>https://login.microsoftonline.com/{{tenant-id}}/v2.0</issuer>
+                <issuer>https://sts.windows.net/{{tenant-id}}/</issuer>
+            </issuers>
+            <required-claims>
+                <claim name="roles" match="any">
+                    <value>FeeAdmin</value>
+                    <value>FeeViewer</value>
+                </claim>
+            </required-claims>
+        </validate-jwt>
+        <set-backend-service base-url="https://feemgmt-func-deep-ezgcg4f5f7h0h8h4.uaenorth-01.azurewebsites.net/api/manage" />
+        <rate-limit calls="30" renewal-period="60" />
+        <set-header name="x-functions-key" exists-action="override">
+            <value>{{func-host-key}}</value>
+        </set-header>
+    </inbound>
+    <backend>
+        <base />
+    </backend>
+    <outbound>
+        <base />
+        <set-header name="X-Powered-By" exists-action="delete" />
+    </outbound>
+    <on-error>
+        <base />
+    </on-error>
+</policies>

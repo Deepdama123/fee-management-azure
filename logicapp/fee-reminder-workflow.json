@@ -1,0 +1,172 @@
+{
+    "definition": {
+        "$schema": "https://schema.management.azure.com/providers/Microsoft.Logic/schemas/2016-06-01/workflowdefinition.json#",
+        "contentVersion": "1.0.0.0",
+        "triggers": {
+            "Recurrence": {
+                "type": "Recurrence",
+                "recurrence": {
+                    "interval": 1,
+                    "frequency": "Day",
+                    "timeZone": "India Standard Time",
+                    "schedule": {
+                        "hours": [
+                            9
+                        ],
+                        "minutes": [
+                            0
+                        ]
+                    }
+                }
+            }
+        },
+        "actions": {
+            "Get_overdue_students": {
+                "type": "Http",
+                "inputs": {
+                    "uri": "https://feemgmt-func-deep-ezgcg4f5f7h0h8h4.uaenorth-01.azurewebsites.net/api/reminders/overdue?limit=200",
+                    "method": "GET",
+                    "headers": {
+                        "x-functions-key": "<FUNCTION_KEY>"
+                    },
+                    "retryPolicy": {
+                        "type": "exponential",
+                        "count": 4,
+                        "interval": "PT10S",
+                        "minimumInterval": "PT5S",
+                        "maximumInterval": "PT1H"
+                    }
+                },
+                "runAfter": {},
+                "runtimeConfiguration": {
+                    "contentTransfer": {
+                        "transferMode": "Chunked"
+                    },
+                    "secureData": {
+                        "properties": [
+                            "inputs"
+                        ]
+                    }
+                }
+            },
+            "Parse_JSON": {
+                "type": "ParseJson",
+                "inputs": {
+                    "content": "@body('Get_overdue_students')",
+                    "schema": {
+                        "type": "object",
+                        "properties": {
+                            "asOf": {
+                                "type": "string"
+                            },
+                            "count": {
+                                "type": "integer"
+                            },
+                            "items": {
+                                "type": "array",
+                                "items": {
+                                    "type": "object",
+                                    "properties": {
+                                        "studentId": {
+                                            "type": "integer"
+                                        },
+                                        "name": {
+                                            "type": "string"
+                                        },
+                                        "course": {
+                                            "type": "string"
+                                        },
+                                        "email": {
+                                            "type": "string"
+                                        },
+                                        "totalFee": {
+                                            "type": "number"
+                                        },
+                                        "paidAmount": {
+                                            "type": "number"
+                                        },
+                                        "balance": {
+                                            "type": "number"
+                                        },
+                                        "dueDate": {
+                                            "type": "string"
+                                        },
+                                        "daysOverdue": {
+                                            "type": "integer"
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                },
+                "runAfter": {
+                    "Get_overdue_students": [
+                        "Succeeded"
+                    ]
+                }
+            },
+            "For_each": {
+                "type": "Foreach",
+                "foreach": "@body('Parse_JSON')?['items']",
+                "actions": {
+                    "Send_an_email_(V2)": {
+                        "type": "ApiConnection",
+                        "inputs": {
+                            "host": {
+                                "connection": {
+                                    "name": "@parameters('$connections')['outlook']['connectionId']"
+                                }
+                            },
+                            "method": "post",
+                            "body": {
+                                "To": "@item()?['email']",
+                                "Subject": "Fee reminder: payment overdue by + daysOverdue + day(s)",
+                                "Body": "<p class=\"editor-paragraph\">Dear [name],<br><br>     Your outstanding balance for [course] is INR [balance].<br>     It was due on [dueDate] ([daysOverdue] days ago).<br><br>     Student ID: [studentId]<br>     Please clear the balance at the earliest.<br><br>     Regards,<br>     Accounts Office</p>",
+                                "Importance": "High"
+                            },
+                            "path": "/v2/Mail",
+                            "retryPolicy": {
+                                "type": "exponential",
+                                "count": 3,
+                                "interval": "PT15S",
+                                "minimumInterval": "PT10S",
+                                "maximumInterval": "PT10M"
+                            }
+                        }
+                    }
+                },
+                "runAfter": {
+                    "Parse_JSON": [
+                        "Succeeded"
+                    ]
+                },
+                "runtimeConfiguration": {
+                    "concurrency": {
+                        "repetitions": 5
+                    }
+                }
+            }
+        },
+        "outputs": {},
+        "parameters": {
+            "$connections": {
+                "type": "Object",
+                "defaultValue": {}
+            }
+        }
+    },
+    "parameters": {
+        "$connections": {
+            "type": "Object",
+            "value": {
+                "outlook": {
+                    "id": "/subscriptions/e73ede47-d4ee-4a82-8124-f1c52d623fb2/providers/Microsoft.Web/locations/uaenorth/managedApis/outlook",
+                    "connectionId": "/subscriptions/e73ede47-d4ee-4a82-8124-f1c52d623fb2/resourceGroups/rg-feemgmt/providers/Microsoft.Web/connections/outlook",
+                    "connectionName": "outlook",
+                    "connectionProperties": {}
+                }
+            }
+        }
+    }
+}

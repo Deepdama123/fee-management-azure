@@ -1,0 +1,85 @@
+openapi: 3.0.1
+info:
+  title: Fee Management - Admin API
+  version: "1.0"
+  description: >
+    Administrators query and update fee records. Requires an APIM subscription
+    key AND an Entra ID access token with the FeeAdmin (read/write) or
+    FeeViewer (read-only) app role.
+servers:
+  - url: https://feemgmt-func-deep-ezgcg4f5f7h0h8h4.uaenorth-01.azurewebsites.net/api/admin
+paths:
+  /students:
+    get:
+      operationId: listStudents
+      summary: Query students (filter by status / course, paged)
+      parameters:
+        - { name: status, in: query, schema: { type: string, enum: [Paid, Partially Paid, Overdue] } }
+        - { name: course, in: query, schema: { type: string } }
+        - { name: page, in: query, schema: { type: integer, default: 1 } }
+        - { name: pageSize, in: query, schema: { type: integer, default: 50, maximum: 200 } }
+      responses:
+        "200": { description: A page of students }
+        "401": { description: Missing or invalid token }
+        "403": { description: Token lacks FeeAdmin / FeeViewer role }
+  /students/{studentId}:
+    get:
+      operationId: getStudent
+      summary: One student's fee record with recent changes (audit)
+      parameters:
+        - { name: studentId, in: path, required: true, schema: { type: integer } }
+      responses:
+        "200": { description: Student fee record }
+        "404": { description: Not found }
+  /students/{studentId}/payments:
+    post:
+      operationId: recordPayment
+      summary: Record a payment (FeeAdmin only). Atomic; cannot overpay.
+      parameters:
+        - { name: studentId, in: path, required: true, schema: { type: integer } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [amount]
+              properties:
+                amount: { type: number, example: 30000 }
+      responses:
+        "200": { description: Updated fee record }
+        "403": { description: Not a FeeAdmin }
+        "409": { description: Payment exceeds outstanding balance }
+  /students/{studentId}/fees:
+    patch:
+      operationId: updateFees
+      summary: Correct a fee record (FeeAdmin only)
+      parameters:
+        - { name: studentId, in: path, required: true, schema: { type: integer } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                totalFee: { type: number }
+                paidAmount: { type: number }
+                dueDate: { type: string, format: date }
+      responses:
+        "200": { description: Updated fee record }
+        "400": { description: Validation error }
+        "409": { description: Paid amount would exceed total fee }
+components:
+  securitySchemes:
+    apiKey:
+      type: apiKey
+      in: header
+      name: Ocp-Apim-Subscription-Key
+    entraId:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+security:
+  - apiKey: []
+    entraId: []

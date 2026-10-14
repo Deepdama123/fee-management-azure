@@ -1,0 +1,12 @@
+{
+  "IsEncrypted": false,
+  "Values": {
+    "AzureWebJobsStorage": "",
+    "FUNCTIONS_WORKER_RUNTIME": "python",
+    "SqlConnectionString": "Driver={ODBC Driver 18 for SQL Server};Server=tcp:<server>.database.windows.net,1433;Database=<database>;Uid=<sql-admin>;Pwd={<password>};Encrypt=yes;TrustServerCertificate=no;Connection Timeout=30;",
+    "AUTH_MODE": "local-dev",
+    "AUTH_TENANT_ID": "<entra-tenant-id>",
+    "AUTH_AUDIENCES": "<api-client-id>,api://<api-client-id>",
+    "FEE_TIMEZONE": "Asia/Kolkata"
+  }
+}

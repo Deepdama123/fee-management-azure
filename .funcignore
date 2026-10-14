@@ -1,0 +1,16 @@
+.git*
+.vscode
+.venv
+venv
+__pycache__
+.pytest_cache
+tests
+sql
+apim
+logicapp
+docs
+local.settings.json
+local.settings.json.example
+requirements-dev.txt
+requests.http
+README.md
